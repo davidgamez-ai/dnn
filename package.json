@@ -1,0 +1,31 @@
+{
+  "name": "dnn",
+  "version": "1.0.0",
+  "description": "Code to demonstrate deep neural network functionality.",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davidgamez-ai/dnn.git"
+  },
+  "keywords": [],
+  "author": "David Gamez",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/davidgamez-ai/dnn/issues"
+  },
+  "homepage": "https://github.com/davidgamez-ai/dnn#readme",
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/pngjs": "^6.0.5"
+  },
+  "dependencies": {
+    "pngjs": "^7.0.0"
+  }
+}
