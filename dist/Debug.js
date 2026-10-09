@@ -4,6 +4,8 @@ const DEBUG = {
     IMAGE_LOAD: false,
     /** Switches on log output of the output layer's logits (values before softmax) */
     OUTPUT_LOGITS: false,
+    /** Switches on log output of each output neuron's error signal during training */
+    OUTPUT_ERROR_SIGNAL: true,
 };
 export default DEBUG;
 //# sourceMappingURL=Debug.js.map

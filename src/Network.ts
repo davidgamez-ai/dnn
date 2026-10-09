@@ -1,5 +1,7 @@
 import { HiddenLayer } from "./HiddenLayer.js";
+import { Hyperparameters } from "./Hyperparameters.js";
 import { OutputLayer } from "./OutputLayer.js";
+import { setSeed } from "./Random.js";
 
 /**
  * A neural network for classifying the 8x8 digit images:
@@ -16,7 +18,10 @@ export class Network {
     private readonly _hiddenLayer2: HiddenLayer;
     private readonly _outputLayer: OutputLayer;
 
-    constructor() {
+    /**
+     * @param hyperparameters Settings for the network, including the random seed used by build().
+     */
+    constructor(readonly hyperparameters: Hyperparameters) {
         // Each layer's input size is the number of neurons in the layer before it.
         this._hiddenLayer1 = new HiddenLayer(Network.INPUT_SIZE, 64);
         this._hiddenLayer2 = new HiddenLayer(this._hiddenLayer1.numNeurons, 32);
@@ -26,8 +31,12 @@ export class Network {
     /**
      * Builds every layer, creating their weights and biases with random
      * starting values. Must be called before calculate().
+     *
+     * The random number generator is first reset to the hyperparameters'
+     * randomSeed, so the same seed always gives the same starting weights.
      */
     build(): void {
+        setSeed(this.hyperparameters.randomSeed);
         this._hiddenLayer1.build();
         this._hiddenLayer2.build();
         this._outputLayer.build();

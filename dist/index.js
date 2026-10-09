@@ -1,5 +1,8 @@
-export {};
-// Load the first image in the dataset (row 0 of digits.csv.gz, a zero).
-// const imagePath = "data/images/0/0000.png";
-// const pixels = new ImageLoader().load(imagePath);
+import { Hyperparameters } from "./Hyperparameters.js";
+import { Trainer } from "./Trainer.js";
+const hyperparameters = new Hyperparameters();
+hyperparameters.randomSeed = 123;
+const trainer = new Trainer(hyperparameters);
+trainer.loadData();
+trainer.train();
 //# sourceMappingURL=index.js.map

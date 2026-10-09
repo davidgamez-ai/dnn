@@ -1,7 +1,13 @@
-import { ImageLoader } from "./ImageLoader.js";
+import { Hyperparameters } from "./Hyperparameters.js";
+import { Trainer } from "./Trainer.js";
 
-// Load the first image in the dataset (row 0 of digits.csv.gz, a zero).
-// const imagePath = "data/images/0/0000.png";
-// const pixels = new ImageLoader().load(imagePath);
+const hyperparameters: Hyperparameters = new Hyperparameters();
+hyperparameters.randomSeed = 123;
+
+
+const trainer:Trainer = new Trainer(hyperparameters);
+trainer.loadData();
+
+trainer.train();
 
 
