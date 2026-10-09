@@ -9,6 +9,9 @@ export class HiddenLayer {
     _numNeurons;
     _weights;
     _biases;
+    // From the most recent call to calculate(), kept for backpropagation.
+    _inputs;
+    _activations;
     /**
      * @param inputSize Number of values coming into the layer, e.g. 64 for a flattened 8x8 image.
      * @param numNeurons Number of neurons in the layer, which is also the number of values it outputs.
@@ -60,6 +63,10 @@ export class HiddenLayer {
      * For each neuron, every input is multiplied by its weight, the products
      * are summed, the bias is added and the ReLU function is applied.
      *
+     * The inputs and the outputs (activations) are stored, replacing those from
+     * the previous call. Backpropagation needs them to calculate this layer's
+     * gradients.
+     *
      * @param inputs Values coming into the layer; must have inputSize elements.
      * @returns One output per neuron.
      * @throws RangeError if the number of inputs does not match inputSize.
@@ -81,7 +88,10 @@ export class HiddenLayer {
             sum += biases[n];
             outputs.push(relu(sum));
         }
-        return outputs;
+        // Store copies, so changes the caller makes to either array do not alter them.
+        this._inputs = [...inputs];
+        this._activations = outputs;
+        return [...outputs];
     }
     /**
      * Returns the number of values in the layer that training can adjust:
@@ -118,6 +128,26 @@ export class HiddenLayer {
             throw new Error("HiddenLayer biases have not been created yet; call build() first");
         }
         return this._biases;
+    }
+    /**
+     * The inputs from the most recent calculate() call.
+     * @throws Error if calculate() has not been called yet.
+     */
+    get inputs() {
+        if (this._inputs === undefined) {
+            throw new Error("HiddenLayer has no stored inputs yet; call calculate() first");
+        }
+        return this._inputs;
+    }
+    /**
+     * Each neuron's output (after ReLU) from the most recent calculate() call.
+     * @throws Error if calculate() has not been called yet.
+     */
+    get activations() {
+        if (this._activations === undefined) {
+            throw new Error("HiddenLayer has no stored activations yet; call calculate() first");
+        }
+        return this._activations;
     }
 }
 /**
