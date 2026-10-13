@@ -84,12 +84,18 @@ export class Trainer {
     }
 
     /**
-     * Works through the training images once. Each image is loaded, flattened
-     * and fed into the network, and the network's output is compared with the
-     * image's digit using cross-entropy loss. The images are grouped into
-     * batches of batchSize (from the hyperparameters), and the average loss of
-     * each batch is logged. The last batch may be smaller if the images do not
+     * Works through the training images once, in batches of batchSize (from
+     * the hyperparameters). The last batch may be smaller if the images do not
      * divide evenly.
+     *
+     * For each image:
+     *   1. Load and flatten the image, and feed it forward through the network.
+     *   2. Measure the cross-entropy loss against the image's digit.
+     *   3. Backpropagate, so every layer has its errors for this image.
+     *   4. Calculate the gradients, averaging them over the images in the batch.
+     *
+     * At the end of each batch the average loss is logged. This is where the
+     * weights will be updated, using the batch's averaged gradients.
      *
      * The weights are not updated yet, so the loss stays at roughly the same level.
      *
@@ -106,18 +112,31 @@ export class Trainer {
         let batchLossTotal = 0;
         let batchNumber = 0;
         for (const image of this._train) {
+            // Step 1: forward pass.
             const pixels = this._imageLoader.flatten(this._imageLoader.load(image.fileName));
-            const probabilities = this._network.calculate(pixels);
-            batchLossTotal += crossEntropyLoss(probabilities, image.digit);
-            batchCounter++;
+            const probabilities = this._network.update(pixels);
 
-            const errorSignal = outputErrorSignal(probabilities, image.digit);
+            // Step 2: loss.
+            batchLossTotal += crossEntropyLoss(probabilities, image.digit);
+
+            // Step 3: backpropagate the errors from the desired output.
+            this._network.backpropagate(oneHot(image.digit, Network.NUM_CLASSES));
             if (DEBUG.OUTPUT_ERROR_SIGNAL) {
-                console.log(`Error signal (digit ${image.digit}): [${errorSignal.map(e => e.toFixed(4)).join(", ")}]`);
+                const errors = this._network.outputErrors;
+                console.log(`Error signal (digit ${image.digit}): [${errors.map(e => e.toFixed(4)).join(", ")}]`);
             }
+
+            // Step 4: gradients. The first image of a batch replaces the
+            // previous batch's gradients; the rest are averaged in.
+            const isStartOfBatch = batchCounter === 0;
+            this._network.calculateGradients(!isStartOfBatch);
+            batchCounter++;
 
             // End of a batch: either it is full, or this is the last image.
             if (batchCounter === batchSize || image === this._train[this._train.length - 1]) {
+                // TODO: update the weights here, using each layer's averaged
+                // gradients and the learning rate.
+
                 batchNumber++;
                 const batchLoss = batchLossTotal / batchCounter;
                 console.log(`Batch ${batchNumber}/${numBatches}: loss ${batchLoss.toFixed(4)}`);
@@ -167,20 +186,17 @@ function crossEntropyLoss(probabilities: readonly number[], digit: number): numb
 }
 
 /**
- * The error signal (delta) for each output neuron: how much the loss would
- * change if that neuron's logit changed. With softmax and cross-entropy loss
- * together this simplifies to probability - target, where the target is 1 for
- * the correct digit and 0 for every other digit (a "one-hot" encoding).
+ * Creates a one-hot vector: 1 at the position of the given digit and 0
+ * everywhere else, e.g. oneHot(3, 10) is [0, 0, 0, 1, 0, 0, 0, 0, 0, 0].
+ * This is the network's desired output for an image of that digit.
  *
- * The correct digit's signal is negative (its probability should go up) and
- * every other signal is positive (their probabilities should go down).
- * Backpropagation starts from these values.
- *
- * @param probabilities The network's output, one probability per digit.
  * @param digit The correct digit (the label).
+ * @param length The number of classes.
  */
-function outputErrorSignal(probabilities: readonly number[], digit: number): number[] {
-    return probabilities.map((probability, d) => probability - (d === digit ? 1 : 0));
+function oneHot(digit: number, length: number): number[] {
+    const vector = new Array<number>(length).fill(0);
+    vector[digit] = 1;
+    return vector;
 }
 
 /**

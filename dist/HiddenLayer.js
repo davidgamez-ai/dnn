@@ -9,9 +9,15 @@ export class HiddenLayer {
     _numNeurons;
     _weights;
     _biases;
-    // From the most recent call to calculate(), kept for backpropagation.
+    // From the most recent call to update(), kept for backpropagation.
     _inputs;
     _activations;
+    // From the most recent call to calculateErrors().
+    _errors;
+    // From the most recent call to calculateGradients().
+    _weightGradients;
+    _biasGradients;
+    _gradientCount = 0;
     /**
      * @param inputSize Number of values coming into the layer, e.g. 64 for a flattened 8x8 image.
      * @param numNeurons Number of neurons in the layer, which is also the number of values it outputs.
@@ -72,7 +78,7 @@ export class HiddenLayer {
      * @throws RangeError if the number of inputs does not match inputSize.
      * @throws Error if build() has not been called yet.
      */
-    calculate(inputs) {
+    update(inputs) {
         if (inputs.length !== this._inputSize) {
             throw new RangeError(`Expected ${this._inputSize} inputs, got ${inputs.length}`);
         }
@@ -92,6 +98,154 @@ export class HiddenLayer {
         this._inputs = [...inputs];
         this._activations = outputs;
         return [...outputs];
+    }
+    /**
+     * Calculates each neuron's error for the most recent call to update(),
+     * from the errors passed back by the next layer:
+     *
+     *     error[n] = errorFromNextLayer[n] * ReLU slope[n]
+     *
+     * The ReLU slope is 1 if the neuron's activation was above 0, and 0 if it
+     * was 0. A neuron that output 0 had no effect on the next layer for this
+     * image, so its error is 0. (ReLU's output is above 0 exactly when its
+     * input was, so the stored activations tell us the slope.)
+     *
+     * The errors are also stored, replacing those from the previous call, and
+     * can be read through the errors property.
+     *
+     * @param errorsFromNextLayer One value per neuron, from the next layer's calculatePreviousLayerErrors().
+     * @returns One error per neuron, which can be passed to calculateGradients().
+     * @throws RangeError if there is not one value per neuron.
+     * @throws Error if update() has not been called yet.
+     */
+    calculateErrors(errorsFromNextLayer) {
+        if (errorsFromNextLayer.length !== this._numNeurons) {
+            throw new RangeError(`Expected ${this._numNeurons} errors (one per neuron), got ${errorsFromNextLayer.length}`);
+        }
+        const activations = this.activations;
+        const errors = [];
+        for (let n = 0; n < this._numNeurons; n++) {
+            const reluSlope = activations[n] > 0 ? 1 : 0;
+            errors.push(errorsFromNextLayer[n] * reluSlope);
+        }
+        // Store the errors, and return a copy so changes the caller makes do not alter them.
+        this._errors = errors;
+        return [...errors];
+    }
+    /**
+     * Passes this layer's errors back through its weights, giving the error
+     * for each of its inputs, i.e. for each neuron in the previous layer:
+     *
+     *     previousLayerError[i] = sum over n of ( weight[n][i] * error[n] )
+     *
+     * Input i feeds every neuron n in this layer through weight[n][i], so its
+     * share of the blame is each neuron's error weighted by that connection.
+     * (In matrix terms: the transposed weight matrix times the error vector.)
+     *
+     * If the previous layer is a hidden layer, it must still multiply these
+     * values by its own ReLU slope; see calculateErrors(). For the first hidden
+     * layer the inputs are the image's pixels, which have no weights to learn,
+     * so there is no need to call this method on it.
+     *
+     * Call this before the weights are updated, so it uses the weights that
+     * produced the current output.
+     *
+     * @param errors This layer's errors, one per neuron, from calculateErrors().
+     * @returns One value per input (inputSize values), to pass to the previous layer.
+     * @throws RangeError if there is not one error per neuron.
+     * @throws Error if build() has not been called yet.
+     */
+    calculatePreviousLayerErrors(errors) {
+        if (errors.length !== this._numNeurons) {
+            throw new RangeError(`Expected ${this._numNeurons} errors (one per neuron), got ${errors.length}`);
+        }
+        const weights = this.weights;
+        const previousLayerErrors = [];
+        for (let i = 0; i < this._inputSize; i++) {
+            let sum = 0;
+            for (let n = 0; n < this._numNeurons; n++) {
+                sum += weights[n][i] * errors[n];
+            }
+            previousLayerErrors.push(sum);
+        }
+        return previousLayerErrors;
+    }
+    /**
+     * Calculates the gradients for the most recent inputs passed to update()
+     * and stores them in weightGradients and biasGradients.
+     *
+     * Each neuron n works out a weighted sum before applying ReLU:
+     *
+     *     sum[n] = sum over i of ( weight[n][i] * input[i] ) + bias[n]
+     *
+     * The error for neuron n (from calculateErrors(), which has already taken
+     * the ReLU slope into account) tells us how much the loss changes when
+     * sum[n] changes. Using the chain rule:
+     *
+     *     weight gradient[n][i] = error[n] * input[i]
+     *     bias gradient[n]      = error[n]
+     *
+     * This is the same rule as in the output layer. A neuron whose output was
+     * 0 has an error of 0, so all of its gradients are 0 for this image.
+     *
+     * Averaging over a batch
+     * ----------------------
+     * When batchAverage is true, the new gradients are combined with the
+     * stored ones using a running mean, so after k images the stored
+     * gradients are the average of those k images' gradients:
+     *
+     *     mean = mean + (new - mean) / k
+     *
+     * This gives the same result as adding up all k gradients and dividing
+     * by k, without having to keep every image's gradients. When batchAverage
+     * is false, the new gradients replace the stored ones, starting a new
+     * average (k = 1). Use false for the first image of each batch and true
+     * for the rest.
+     *
+     * @param errors One error per neuron, from calculateErrors().
+     * @param batchAverage true to average the new gradients with the stored
+     * ones; false to replace them.
+     * @throws RangeError if there is not one error per neuron.
+     * @throws Error if update() has not been called yet.
+     */
+    calculateGradients(errors, batchAverage) {
+        if (errors.length !== this._numNeurons) {
+            throw new RangeError(`Expected ${this._numNeurons} errors (one per neuron), got ${errors.length}`);
+        }
+        const inputs = this.inputs;
+        // Step 1: weight gradients, one per weight.
+        const weightGradients = [];
+        for (let n = 0; n < this._numNeurons; n++) {
+            const neuronWeightGradients = [];
+            for (let i = 0; i < this._inputSize; i++) {
+                neuronWeightGradients.push(errors[n] * inputs[i]);
+            }
+            weightGradients.push(neuronWeightGradients);
+        }
+        // Step 2: bias gradients, one per neuron. A bias is added directly to
+        // the sum (as if its input were always 1), so its gradient is just
+        // the error.
+        const biasGradients = [];
+        for (let n = 0; n < this._numNeurons; n++) {
+            biasGradients.push(errors[n]);
+        }
+        // Step 3: store the gradients. Replace the stored ones, unless we are
+        // averaging and there are stored gradients to average with.
+        if (!batchAverage || this._weightGradients === undefined || this._biasGradients === undefined) {
+            this._weightGradients = weightGradients;
+            this._biasGradients = biasGradients;
+            this._gradientCount = 1;
+            return;
+        }
+        this._gradientCount++;
+        const k = this._gradientCount;
+        for (let n = 0; n < this._numNeurons; n++) {
+            const meanWeightGradients = this._weightGradients[n];
+            for (let i = 0; i < this._inputSize; i++) {
+                meanWeightGradients[i] += (weightGradients[n][i] - meanWeightGradients[i]) / k;
+            }
+            this._biasGradients[n] += (biasGradients[n] - this._biasGradients[n]) / k;
+        }
     }
     /**
      * Returns the number of values in the layer that training can adjust:
@@ -130,24 +284,59 @@ export class HiddenLayer {
         return this._biases;
     }
     /**
-     * The inputs from the most recent calculate() call.
-     * @throws Error if calculate() has not been called yet.
+     * The inputs from the most recent update() call.
+     * @throws Error if update() has not been called yet.
      */
     get inputs() {
         if (this._inputs === undefined) {
-            throw new Error("HiddenLayer has no stored inputs yet; call calculate() first");
+            throw new Error("HiddenLayer has no stored inputs yet; call update() first");
         }
         return this._inputs;
     }
     /**
-     * Each neuron's output (after ReLU) from the most recent calculate() call.
-     * @throws Error if calculate() has not been called yet.
+     * Each neuron's output (after ReLU) from the most recent update() call.
+     * @throws Error if update() has not been called yet.
      */
     get activations() {
         if (this._activations === undefined) {
-            throw new Error("HiddenLayer has no stored activations yet; call calculate() first");
+            throw new Error("HiddenLayer has no stored activations yet; call update() first");
         }
         return this._activations;
+    }
+    /**
+     * Each neuron's error from the most recent calculateErrors() call.
+     * @throws Error if calculateErrors() has not been called yet.
+     */
+    get errors() {
+        if (this._errors === undefined) {
+            throw new Error("HiddenLayer has no stored errors yet; call calculateErrors() first");
+        }
+        return this._errors;
+    }
+    /**
+     * The weight gradients from the most recent calculateGradients() call,
+     * indexed [neuron][input] like the weight matrix.
+     * @throws Error if calculateGradients() has not been called yet.
+     */
+    get weightGradients() {
+        if (this._weightGradients === undefined) {
+            throw new Error("HiddenLayer has no weight gradients yet; call calculateGradients() first");
+        }
+        return this._weightGradients;
+    }
+    /**
+     * The bias gradients from the most recent calculateGradients() call, one per neuron.
+     * @throws Error if calculateGradients() has not been called yet.
+     */
+    get biasGradients() {
+        if (this._biasGradients === undefined) {
+            throw new Error("HiddenLayer has no bias gradients yet; call calculateGradients() first");
+        }
+        return this._biasGradients;
+    }
+    /** Number of images averaged into the stored gradients (0 before calculateGradients() is called). */
+    get gradientCount() {
+        return this._gradientCount;
     }
 }
 /**

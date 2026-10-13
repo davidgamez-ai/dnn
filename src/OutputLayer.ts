@@ -13,13 +13,17 @@ export class OutputLayer {
     private _weights: number[][] | undefined;
     private _biases: number[] | undefined;
 
-    // From the most recent call to calculate(), kept for backpropagation.
+    // From the most recent call to update(), kept for backpropagation.
     private _inputs: number[] | undefined;
     private _activations: number[] | undefined;
+
+    // From the most recent call to calculateErrors().
+    private _errors: number[] | undefined;
 
     // From the most recent call to calculateGradients().
     private _weightGradients: number[][] | undefined;
     private _biasGradients: number[] | undefined;
+    private _gradientCount = 0;
 
     /**
      * @param inputSize Number of values coming into the layer, i.e. the number of neurons in the last hidden layer.
@@ -86,7 +90,7 @@ export class OutputLayer {
      * @throws RangeError if the number of inputs does not match inputSize.
      * @throws Error if build() has not been called yet.
      */
-    calculate(inputs: readonly number[]): number[] {
+    update(inputs: readonly number[]): number[] {
         if (inputs.length !== this._inputSize) {
             throw new RangeError(`Expected ${this._inputSize} inputs, got ${inputs.length}`);
         }
@@ -116,9 +120,89 @@ export class OutputLayer {
     }
 
     /**
-     * Calculates the gradients for the most recent inputs passed to calculate()
-     * and stores them in weightGradients and biasGradients, replacing those
-     * from the previous call.
+     * Calculates each neuron's error for the most recent call to update(),
+     * by comparing the activations with the desired activations:
+     *
+     *     error[n] = activation[n] - target[n]
+     *
+     * With softmax activation and cross-entropy loss, this is exactly how much
+     * the loss changes when neuron n's logit changes, so these errors can be
+     * passed straight to calculateGradients().
+     *
+     * The correct neuron's error is negative (its activation should go up) and
+     * every other error is positive (their activations should go down).
+     *
+     * The errors are also stored, replacing those from the previous call, and
+     * can be read through the errors property.
+     *
+     * @param target The desired activations as a one-hot vector: 1 for the
+     * correct class and 0 for every other class, e.g. [0, 0, 0, 1, 0, 0, 0, 0, 0, 0] for the digit 3.
+     * @returns One error per neuron.
+     * @throws RangeError if target does not have one value per neuron, or is not one-hot.
+     * @throws Error if update() has not been called yet.
+     */
+    calculateErrors(target: readonly number[]): number[] {
+        if (target.length !== this._numNeurons) {
+            throw new RangeError(`Expected a target with ${this._numNeurons} values (one per neuron), got ${target.length}`);
+        }
+        const isOneHot = target.every(value => value === 0 || value === 1)
+            && target.filter(value => value === 1).length === 1;
+        if (!isOneHot) {
+            throw new RangeError(`Target must be one-hot (a single 1, all other values 0), got [${target.join(", ")}]`);
+        }
+        const activations = this.activations;
+
+        const errors: number[] = [];
+        for (let n = 0; n < this._numNeurons; n++) {
+            errors.push(activations[n]! - target[n]!);
+        }
+
+        // Store the errors, and return a copy so changes the caller makes do not alter them.
+        this._errors = errors;
+        return [...errors];
+    }
+
+    /**
+     * Passes this layer's errors back through its weights, giving the error
+     * for each of its inputs, i.e. for each neuron in the previous layer:
+     *
+     *     previousLayerError[i] = sum over n of ( weight[n][i] * error[n] )
+     *
+     * Input i feeds every neuron n in this layer through weight[n][i], so its
+     * share of the blame is each neuron's error weighted by that connection.
+     * (In matrix terms: the transposed weight matrix times the error vector.)
+     *
+     * The previous layer must still multiply these values by the slope of its
+     * own activation function; see HiddenLayer.calculateErrors().
+     *
+     * Call this before the weights are updated, so it uses the weights that
+     * produced the current output.
+     *
+     * @param errors This layer's errors, one per neuron, e.g. from calculateErrors().
+     * @returns One value per input (inputSize values), to pass to the previous layer.
+     * @throws RangeError if there is not one error per neuron.
+     * @throws Error if build() has not been called yet.
+     */
+    calculatePreviousLayerErrors(errors: readonly number[]): number[] {
+        if (errors.length !== this._numNeurons) {
+            throw new RangeError(`Expected ${this._numNeurons} errors (one per neuron), got ${errors.length}`);
+        }
+        const weights = this.weights;
+
+        const previousLayerErrors: number[] = [];
+        for (let i = 0; i < this._inputSize; i++) {
+            let sum = 0;
+            for (let n = 0; n < this._numNeurons; n++) {
+                sum += weights[n]![i]! * errors[n]!;
+            }
+            previousLayerErrors.push(sum);
+        }
+        return previousLayerErrors;
+    }
+
+    /**
+     * Calculates the gradients for the most recent inputs passed to update()
+     * and stores them in weightGradients and biasGradients.
      *
      * Each neuron n works out
      *
@@ -134,11 +218,27 @@ export class OutputLayer {
      * when the input it multiplies is large. If the input is 0, the weight had
      * no effect on this image, so its gradient is 0.
      *
+     * Averaging over a batch
+     * ----------------------
+     * When batchAverage is true, the new gradients are combined with the
+     * stored ones using a running mean, so after k images the stored
+     * gradients are the average of those k images' gradients:
+     *
+     *     mean = mean + (new - mean) / k
+     *
+     * This gives the same result as adding up all k gradients and dividing
+     * by k, without having to keep every image's gradients. When batchAverage
+     * is false, the new gradients replace the stored ones, starting a new
+     * average (k = 1). Use false for the first image of each batch and true
+     * for the rest.
+     *
      * @param errorSignals One error signal (probability - target) per neuron.
+     * @param batchAverage true to average the new gradients with the stored
+     * ones; false to replace them.
      * @throws RangeError if there is not one error signal per neuron.
-     * @throws Error if calculate() has not been called yet.
+     * @throws Error if update() has not been called yet.
      */
-    calculateGradients(errorSignals: readonly number[]): void {
+    calculateGradients(errorSignals: readonly number[], batchAverage: boolean): void {
         if (errorSignals.length !== this._numNeurons) {
             throw new RangeError(`Expected ${this._numNeurons} error signals (one per neuron), got ${errorSignals.length}`);
         }
@@ -162,8 +262,23 @@ export class OutputLayer {
             biasGradients.push(errorSignals[n]!);
         }
 
-        this._weightGradients = weightGradients;
-        this._biasGradients = biasGradients;
+        // Step 3: store the gradients. Replace the stored ones, unless we are
+        // averaging and there are stored gradients to average with.
+        if (!batchAverage || this._weightGradients === undefined || this._biasGradients === undefined) {
+            this._weightGradients = weightGradients;
+            this._biasGradients = biasGradients;
+            this._gradientCount = 1;
+            return;
+        }
+        this._gradientCount++;
+        const k = this._gradientCount;
+        for (let n = 0; n < this._numNeurons; n++) {
+            const meanWeightGradients = this._weightGradients[n]!;
+            for (let i = 0; i < this._inputSize; i++) {
+                meanWeightGradients[i]! += (weightGradients[n]![i]! - meanWeightGradients[i]!) / k;
+            }
+            this._biasGradients[n]! += (biasGradients[n]! - this._biasGradients[n]!) / k;
+        }
     }
 
     /** Number of values coming into the layer. */
@@ -199,26 +314,37 @@ export class OutputLayer {
     }
 
     /**
-     * The inputs from the most recent calculate() call.
-     * @throws Error if calculate() has not been called yet.
+     * The inputs from the most recent update() call.
+     * @throws Error if update() has not been called yet.
      */
     get inputs(): readonly number[] {
         if (this._inputs === undefined) {
-            throw new Error("OutputLayer has no stored inputs yet; call calculate() first");
+            throw new Error("OutputLayer has no stored inputs yet; call update() first");
         }
         return this._inputs;
     }
 
     /**
      * Each neuron's output (the probabilities, after softmax) from the most
-     * recent calculate() call.
-     * @throws Error if calculate() has not been called yet.
+     * recent update() call.
+     * @throws Error if update() has not been called yet.
      */
     get activations(): readonly number[] {
         if (this._activations === undefined) {
-            throw new Error("OutputLayer has no stored activations yet; call calculate() first");
+            throw new Error("OutputLayer has no stored activations yet; call update() first");
         }
         return this._activations;
+    }
+
+    /**
+     * Each neuron's error from the most recent calculateErrors() call.
+     * @throws Error if calculateErrors() has not been called yet.
+     */
+    get errors(): readonly number[] {
+        if (this._errors === undefined) {
+            throw new Error("OutputLayer has no stored errors yet; call calculateErrors() first");
+        }
+        return this._errors;
     }
 
     /**
@@ -242,6 +368,11 @@ export class OutputLayer {
             throw new Error("OutputLayer has no bias gradients yet; call calculateGradients() first");
         }
         return this._biasGradients;
+    }
+
+    /** Number of images averaged into the stored gradients (0 before calculateGradients() is called). */
+    get gradientCount(): number {
+        return this._gradientCount;
     }
 }
 

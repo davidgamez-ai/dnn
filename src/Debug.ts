@@ -7,7 +7,7 @@ const DEBUG = {
     OUTPUT_LOGITS: false,
 
     /** Switches on log output of each output neuron's error signal during training */
-    OUTPUT_ERROR_SIGNAL: true,
+    OUTPUT_ERROR_SIGNAL: false,
 
 };
 
