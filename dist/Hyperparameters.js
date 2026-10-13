@@ -12,11 +12,15 @@ export class Hyperparameters {
     _hiddenLayerSizes;
     _dataSplit;
     _randomSeed;
+    _beta1;
+    _beta2;
+    _epsilon;
+    _weightDecay;
     /**
      * Creates a set of hyperparameters. Any value that is not supplied
      * takes its default.
      */
-    constructor({ learningRate = 0.1, epochs = 50, batchSize = 32, hiddenLayerSizes = [32], dataSplit = { train: 0.7, validation: 0.15, test: 0.15 }, randomSeed = 42, } = {}) {
+    constructor({ learningRate = 0.001, epochs = 50, batchSize = 32, hiddenLayerSizes = [32], dataSplit = { train: 0.7, validation: 0.15, test: 0.15 }, randomSeed = 42, beta1 = 0.9, beta2 = 0.999, epsilon = 1e-8, weightDecay = 0.01, } = {}) {
         // Assigning through the setters means the constructor and the setters share the same checks.
         this.learningRate = learningRate;
         this.epochs = epochs;
@@ -24,8 +28,15 @@ export class Hyperparameters {
         this.hiddenLayerSizes = hiddenLayerSizes;
         this.dataSplit = dataSplit;
         this.randomSeed = randomSeed;
+        this.beta1 = beta1;
+        this.beta2 = beta2;
+        this.epsilon = epsilon;
+        this.weightDecay = weightDecay;
     }
-    /** Step size used when updating the weights after each batch. */
+    /**
+     * Step size used when updating the weights after each batch. The AdamW
+     * optimizer usually works well around 0.001.
+     */
     get learningRate() {
         return this._learningRate;
     }
@@ -112,6 +123,56 @@ export class Hyperparameters {
             throw new RangeError(`randomSeed must be an integer from 0 to 4294967295, got ${value}`);
         }
         this._randomSeed = value;
+    }
+    /**
+     * AdamW: how much of the previous average gradient to keep each step
+     * (the "momentum"). Higher values smooth the gradients more.
+     */
+    get beta1() {
+        return this._beta1;
+    }
+    /** @throws RangeError if the value is not at least 0 and less than 1. */
+    set beta1(value) {
+        if (!(value >= 0 && value < 1)) {
+            throw new RangeError(`beta1 must be at least 0 and less than 1, got ${value}`);
+        }
+        this._beta1 = value;
+    }
+    /** AdamW: how much of the previous average squared gradient to keep each step. */
+    get beta2() {
+        return this._beta2;
+    }
+    /** @throws RangeError if the value is not at least 0 and less than 1. */
+    set beta2(value) {
+        if (!(value >= 0 && value < 1)) {
+            throw new RangeError(`beta2 must be at least 0 and less than 1, got ${value}`);
+        }
+        this._beta2 = value;
+    }
+    /** AdamW: small number added to the denominator so it never divides by 0. */
+    get epsilon() {
+        return this._epsilon;
+    }
+    /** @throws RangeError if the value is not greater than 0. */
+    set epsilon(value) {
+        if (!(value > 0)) {
+            throw new RangeError(`epsilon must be greater than 0, got ${value}`);
+        }
+        this._epsilon = value;
+    }
+    /**
+     * AdamW: how strongly weights are pulled towards 0 each step, to
+     * discourage very large weights. 0 turns weight decay off.
+     */
+    get weightDecay() {
+        return this._weightDecay;
+    }
+    /** @throws RangeError if the value is negative. */
+    set weightDecay(value) {
+        if (!(value >= 0)) {
+            throw new RangeError(`weightDecay must not be negative, got ${value}`);
+        }
+        this._weightDecay = value;
     }
 }
 //# sourceMappingURL=Hyperparameters.js.map

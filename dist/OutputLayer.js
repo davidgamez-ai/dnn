@@ -260,6 +260,36 @@ export class OutputLayer {
             this._biasGradients[n] += (biasGradients[n] - this._biasGradients[n]) / k;
         }
     }
+    /**
+     * Updates this layer's weights in place using the optimizer and the
+     * stored (batch-averaged) weight gradients. Weight decay is applied.
+     *
+     * Call optimizer.step() once per batch before updating any layer, and
+     * call this only after backpropagation has used the current weights
+     * (calculatePreviousLayerErrors() reads them).
+     *
+     * @param optimizer The AdamW optimizer, shared by every layer in the network.
+     * @throws Error if build() or calculateGradients() has not been called yet.
+     */
+    updateWeights(optimizer) {
+        if (this._weights === undefined) {
+            throw new Error("OutputLayer weights have not been created yet; call build() first");
+        }
+        optimizer.updateMatrix(this._weights, this.weightGradients);
+    }
+    /**
+     * Updates this layer's biases in place using the optimizer and the stored
+     * (batch-averaged) bias gradients. No weight decay is applied to biases.
+     *
+     * @param optimizer The AdamW optimizer, shared by every layer in the network.
+     * @throws Error if build() or calculateGradients() has not been called yet.
+     */
+    updateBiases(optimizer) {
+        if (this._biases === undefined) {
+            throw new Error("OutputLayer biases have not been created yet; call build() first");
+        }
+        optimizer.updateVector(this._biases, this.biasGradients);
+    }
     /** Number of values coming into the layer. */
     get inputSize() {
         return this._inputSize;

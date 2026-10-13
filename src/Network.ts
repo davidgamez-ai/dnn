@@ -1,3 +1,4 @@
+import { AdamW } from "./AdamW.js";
 import { HiddenLayer } from "./HiddenLayer.js";
 import { Hyperparameters } from "./Hyperparameters.js";
 import { OutputLayer } from "./OutputLayer.js";
@@ -106,6 +107,32 @@ export class Network {
         this._outputLayer.calculateGradients(this._outputLayer.errors, batchAverage);
         this._hiddenLayer2.calculateGradients(this._hiddenLayer2.errors, batchAverage);
         this._hiddenLayer1.calculateGradients(this._hiddenLayer1.errors, batchAverage);
+    }
+
+    /**
+     * Takes one optimization step: every layer's weights and biases are
+     * updated by the optimizer, using the gradients stored in each layer
+     * (normally averaged over a batch by calculateGradients()).
+     *
+     * Call this once per batch, after the last image's gradients have been
+     * calculated. It starts a new optimizer step first, so the optimizer's
+     * bias correction counts batches correctly.
+     *
+     * @param optimizer The AdamW optimizer. Use the same one for the whole of
+     * training, as it remembers running averages of each layer's gradients.
+     * @throws Error if calculateGradients() has not been called yet.
+     */
+    updateWeights(optimizer: AdamW): void {
+        optimizer.step();
+
+        this._outputLayer.updateWeights(optimizer);
+        this._outputLayer.updateBiases(optimizer);
+
+        this._hiddenLayer2.updateWeights(optimizer);
+        this._hiddenLayer2.updateBiases(optimizer);
+
+        this._hiddenLayer1.updateWeights(optimizer);
+        this._hiddenLayer1.updateBiases(optimizer);
     }
 
     /**

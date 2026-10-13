@@ -1,5 +1,6 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
+import { AdamW } from "./AdamW.js";
 import DEBUG from "./Debug.js";
 import { ImageLoader } from "./ImageLoader.js";
 import { Network } from "./Network.js";
@@ -11,21 +12,24 @@ export class Trainer {
     hyperparameters;
     _hyperparameters;
     _network;
+    _optimizer;
     _imageLoader = new ImageLoader();
     _train = [];
     _validation = [];
     _test = [];
     /**
      * Creates the network to be trained and builds it, so its weights and
-     * biases are ready to use.
+     * biases are ready to use, and creates the optimizer that will update them.
      *
-     * @param hyperparameters Settings for training, including how to split the data and the random seed.
+     * @param hyperparameters Settings for training, including how to split the
+     * data, the random seed and the optimizer's settings.
      */
     constructor(hyperparameters) {
         this.hyperparameters = hyperparameters;
         this._hyperparameters = hyperparameters;
         this._network = new Network(hyperparameters);
         this._network.build();
+        this._optimizer = new AdamW(hyperparameters);
     }
     /**
      * Finds every image in the images folder and divides them into training,
@@ -80,10 +84,12 @@ export class Trainer {
      *   3. Backpropagate, so every layer has its errors for this image.
      *   4. Calculate the gradients, averaging them over the images in the batch.
      *
-     * At the end of each batch the average loss is logged. This is where the
-     * weights will be updated, using the batch's averaged gradients.
+     * At the end of each batch:
+     *   5. Update the weights and biases.
      *
-     * The weights are not updated yet, so the loss stays at roughly the same level.
+     * At the end of each batch, the AdamW optimizer updates every layer's
+     * weights and biases using the batch's averaged gradients, and the
+     * batch's average loss is logged. As the network learns, the loss falls.
      *
      * @throws Error if loadData() has not been called, or found no training images.
      */
@@ -115,8 +121,9 @@ export class Trainer {
             batchCounter++;
             // End of a batch: either it is full, or this is the last image.
             if (batchCounter === batchSize || image === this._train[this._train.length - 1]) {
-                // TODO: update the weights here, using each layer's averaged
-                // gradients and the learning rate.
+                // Step 5: update the weights and biases using the gradients
+                // averaged over this batch.
+                this._network.updateWeights(this._optimizer);
                 batchNumber++;
                 const batchLoss = batchLossTotal / batchCounter;
                 console.log(`Batch ${batchNumber}/${numBatches}: loss ${batchLoss.toFixed(4)}`);
