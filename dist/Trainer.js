@@ -18,16 +18,18 @@ export class Trainer {
     _validation = [];
     _test = [];
     /**
-     * Creates the network to be trained and builds it, so its weights and
-     * biases are ready to use, and creates the optimizer that will update them.
+     * Builds the network, so its weights and biases are ready to use, and
+     * creates the optimizer that will update them.
      *
      * @param hyperparameters Settings for training, including how to split the
      * data, the random seed and the optimizer's settings.
+     * @param network The network to train. build() is called on it here, which
+     * gives it fresh random weights.
      */
-    constructor(hyperparameters) {
+    constructor(hyperparameters, network) {
         this.hyperparameters = hyperparameters;
         this._hyperparameters = hyperparameters;
-        this._network = new Network(hyperparameters);
+        this._network = network;
         this._network.build();
         this._optimizer = new AdamW(hyperparameters);
     }
@@ -74,9 +76,16 @@ export class Trainer {
         console.log(`Test images: ${this._test.length}`);
     }
     /**
-     * Works through the training images once, in batches of batchSize (from
-     * the hyperparameters). The last batch may be smaller if the images do not
-     * divide evenly.
+     * Trains the network for the number of epochs in the hyperparameters. An
+     * epoch is one complete pass through the training images.
+     *
+     * At the start of each epoch the training images are shuffled, so the
+     * batches contain a different mix of images every time. Otherwise the
+     * network would see the images in the same order each epoch, which can
+     * make it learn patterns in the order rather than in the images.
+     *
+     * Within an epoch the images are processed in batches of batchSize. The
+     * last batch may be smaller if the images do not divide evenly.
      *
      * For each image:
      *   1. Load and flatten the image, and feed it forward through the network.
@@ -85,11 +94,13 @@ export class Trainer {
      *   4. Calculate the gradients, averaging them over the images in the batch.
      *
      * At the end of each batch:
-     *   5. Update the weights and biases.
+     *   5. The AdamW optimizer updates every layer's weights and biases using
+     *      the batch's averaged gradients.
      *
-     * At the end of each batch, the AdamW optimizer updates every layer's
-     * weights and biases using the batch's averaged gradients, and the
-     * batch's average loss is logged. As the network learns, the loss falls.
+     * Each batch's average loss is logged when DEBUG.BATCH_LOSS is set. After
+     * each epoch, the epoch's average training loss and the loss on the
+     * validation images (see calculateValidationLoss()) are logged. As the
+     * network learns, the losses fall.
      *
      * @throws Error if loadData() has not been called, or found no training images.
      */
@@ -97,40 +108,84 @@ export class Trainer {
         if (this._train.length === 0) {
             throw new Error("No training images; call loadData() first");
         }
+        const epochs = this._hyperparameters.epochs;
         const batchSize = this._hyperparameters.batchSize;
         const numBatches = Math.ceil(this._train.length / batchSize);
-        let batchCounter = 0;
-        let batchLossTotal = 0;
-        let batchNumber = 0;
-        for (const image of this._train) {
-            // Step 1: forward pass.
-            const pixels = this._imageLoader.flatten(this._imageLoader.load(image.fileName));
-            const probabilities = this._network.update(pixels);
-            // Step 2: loss.
-            batchLossTotal += crossEntropyLoss(probabilities, image.digit);
-            // Step 3: backpropagate the errors from the desired output.
-            this._network.backpropagate(oneHot(image.digit, Network.NUM_CLASSES));
-            if (DEBUG.OUTPUT_ERROR_SIGNAL) {
-                const errors = this._network.outputErrors;
-                console.log(`Error signal (digit ${image.digit}): [${errors.map(e => e.toFixed(4)).join(", ")}]`);
+        for (let epoch = 1; epoch <= epochs; epoch++) {
+            // A new random order of training images for this epoch.
+            shuffle(this._train);
+            let epochLossTotal = 0;
+            let batchCounter = 0;
+            let batchLossTotal = 0;
+            let batchNumber = 0;
+            for (const image of this._train) {
+                // Step 1: forward pass.
+                const pixels = this._imageLoader.flatten(this._imageLoader.load(image.fileName));
+                const probabilities = this._network.update(pixels);
+                // Step 2: loss.
+                const loss = crossEntropyLoss(probabilities, image.digit);
+                batchLossTotal += loss;
+                epochLossTotal += loss;
+                // Step 3: backpropagate the errors from the desired output.
+                this._network.backpropagate(oneHot(image.digit, Network.NUM_CLASSES));
+                if (DEBUG.OUTPUT_ERROR_SIGNAL) {
+                    const errors = this._network.outputErrors;
+                    console.log(`Error signal (digit ${image.digit}): [${errors.map(e => e.toFixed(4)).join(", ")}]`);
+                }
+                // Step 4: gradients. The first image of a batch replaces the
+                // previous batch's gradients; the rest are averaged in.
+                const isStartOfBatch = batchCounter === 0;
+                this._network.calculateGradients(!isStartOfBatch);
+                batchCounter++;
+                // End of a batch: either it is full, or this is the last image.
+                if (batchCounter === batchSize || image === this._train[this._train.length - 1]) {
+                    // Step 5: update the weights and biases using the gradients
+                    // averaged over this batch.
+                    this._network.updateWeights(this._optimizer);
+                    batchNumber++;
+                    if (DEBUG.BATCH_LOSS) {
+                        const batchLoss = batchLossTotal / batchCounter;
+                        console.log(`Epoch ${epoch}/${epochs}, batch ${batchNumber}/${numBatches}: loss ${batchLoss.toFixed(4)}`);
+                    }
+                    batchCounter = 0;
+                    batchLossTotal = 0;
+                }
             }
-            // Step 4: gradients. The first image of a batch replaces the
-            // previous batch's gradients; the rest are averaged in.
-            const isStartOfBatch = batchCounter === 0;
-            this._network.calculateGradients(!isStartOfBatch);
-            batchCounter++;
-            // End of a batch: either it is full, or this is the last image.
-            if (batchCounter === batchSize || image === this._train[this._train.length - 1]) {
-                // Step 5: update the weights and biases using the gradients
-                // averaged over this batch.
-                this._network.updateWeights(this._optimizer);
-                batchNumber++;
-                const batchLoss = batchLossTotal / batchCounter;
-                console.log(`Batch ${batchNumber}/${numBatches}: loss ${batchLoss.toFixed(4)}`);
-                batchCounter = 0;
-                batchLossTotal = 0;
+            const epochLoss = epochLossTotal / this._train.length;
+            console.log(`Epoch ${epoch}/${epochs}: average loss ${epochLoss.toFixed(4)}`);
+            // Check how well the network does on images it has not trained on.
+            if (this._validation.length > 0) {
+                const validationLoss = this.calculateValidationLoss();
+                console.log(`Epoch ${epoch}/${epochs}: validation loss ${validationLoss.toFixed(4)}`);
             }
         }
+    }
+    /**
+     * Calculates the network's average cross-entropy loss on the validation
+     * images. Each image is fed forward through the network and compared with
+     * its digit, exactly as in training, but there is no backpropagation and
+     * no weight update: the network does not learn from these images.
+     *
+     * Comparing this with the training loss shows whether the network is
+     * learning to recognise digits in general or just memorising the training
+     * images. If the training loss keeps falling while the validation loss
+     * starts to rise, the network has begun to overfit.
+     *
+     * @returns The average loss over the validation images.
+     * @throws Error if there are no validation images (loadData() not called,
+     * or dataSplit.validation is 0).
+     */
+    calculateValidationLoss() {
+        if (this._validation.length === 0) {
+            throw new Error("No validation images; call loadData() first, with dataSplit.validation above 0");
+        }
+        let lossTotal = 0;
+        for (const image of this._validation) {
+            const pixels = this._imageLoader.flatten(this._imageLoader.load(image.fileName));
+            const probabilities = this._network.update(pixels);
+            lossTotal += crossEntropyLoss(probabilities, image.digit);
+        }
+        return lossTotal / this._validation.length;
     }
     /** The network being trained. */
     get network() {

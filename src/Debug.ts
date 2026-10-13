@@ -9,6 +9,9 @@ const DEBUG = {
     /** Switches on log output of each output neuron's error signal during training */
     OUTPUT_ERROR_SIGNAL: false,
 
+    /** Switches on log output of each batch's average loss during training */
+    BATCH_LOSS: false,
+
 };
 
 export default DEBUG;
