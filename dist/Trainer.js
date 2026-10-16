@@ -213,7 +213,7 @@ export class Trainer {
  * @param probabilities The network's output, one probability per digit.
  * @param digit The correct digit (the label).
  */
-function crossEntropyLoss(probabilities, digit) {
+export function crossEntropyLoss(probabilities, digit) {
     const probability = probabilities[digit];
     if (probability === undefined) {
         throw new RangeError(`Label ${digit} has no matching output; the network has ${probabilities.length} outputs`);
@@ -229,7 +229,7 @@ function crossEntropyLoss(probabilities, digit) {
  * @param digit The correct digit (the label).
  * @param length The number of classes.
  */
-function oneHot(digit, length) {
+export function oneHot(digit, length) {
     const vector = new Array(length).fill(0);
     vector[digit] = 1;
     return vector;

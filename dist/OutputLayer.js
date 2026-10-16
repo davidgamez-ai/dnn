@@ -13,6 +13,7 @@ export class OutputLayer {
     _biases;
     // From the most recent call to update(), kept for backpropagation.
     _inputs;
+    _logits;
     _activations;
     // From the most recent call to calculateErrors().
     _errors;
@@ -102,8 +103,9 @@ export class OutputLayer {
             console.log("Output layer logits:", logits);
         }
         const probabilities = softmax(logits);
-        // Store copies, so changes the caller makes to either array do not alter them.
+        // Store copies, so changes the caller makes to the arrays do not alter them.
         this._inputs = [...inputs];
+        this._logits = logits;
         this._activations = probabilities;
         return [...probabilities];
     }
@@ -327,6 +329,17 @@ export class OutputLayer {
             throw new Error("OutputLayer has no stored inputs yet; call update() first");
         }
         return this._inputs;
+    }
+    /**
+     * Each neuron's logit (weighted sum plus bias, before softmax) from the
+     * most recent update() call.
+     * @throws Error if update() has not been called yet.
+     */
+    get logits() {
+        if (this._logits === undefined) {
+            throw new Error("OutputLayer has no stored logits yet; call update() first");
+        }
+        return this._logits;
     }
     /**
      * Each neuron's output (the probabilities, after softmax) from the most

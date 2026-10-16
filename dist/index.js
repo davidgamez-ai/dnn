@@ -1,7 +1,8 @@
 import { Hyperparameters } from "./Hyperparameters.js";
-import { Tester } from "./Tester.js";
+import { XORTester } from "./XORTester.js";
 const hyperparameters = new Hyperparameters();
-hyperparameters.randomSeed = 123;
-const tester = new Tester(hyperparameters);
-tester.run();
+hyperparameters.randomSeed = 9;
+hyperparameters.epochs = 5;
+const xorTester = new XORTester(hyperparameters);
+xorTester.run();
 //# sourceMappingURL=index.js.map

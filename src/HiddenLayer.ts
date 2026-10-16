@@ -2,13 +2,23 @@ import { AdamW } from "./AdamW.js";
 import { randomNormal } from "./Random.js";
 
 /**
+ * The activation functions a hidden layer can use:
+ *   "relu"    - max(0, x). The usual choice for deep networks.
+ *   "sigmoid" - 1 / (1 + e^-x), which squashes every value into 0-1. Its slope
+ *               is never exactly 0, so a neuron can always recover, which
+ *               helps very small networks such as XORNetwork.
+ */
+export type Activation = "relu" | "sigmoid";
+
+/**
  * A fully connected hidden layer: every neuron receives every input.
- * Hidden layers are assumed to use the ReLU activation function, which is
- * what the weight initialization in build() is chosen for.
+ * Hidden layers use the ReLU activation function unless told otherwise;
+ * the weight initialization in build() is chosen to match the activation.
  */
 export class HiddenLayer {
     private readonly _inputSize: number;
     private readonly _numNeurons: number;
+    private readonly _activation: Activation;
     private _weights: number[][] | undefined;
     private _biases: number[] | undefined;
 
@@ -27,8 +37,9 @@ export class HiddenLayer {
     /**
      * @param inputSize Number of values coming into the layer, e.g. 64 for a flattened 8x8 image.
      * @param numNeurons Number of neurons in the layer, which is also the number of values it outputs.
+     * @param activation The activation function applied by every neuron.
      */
-    constructor(inputSize: number, numNeurons: number) {
+    constructor(inputSize: number, numNeurons: number, activation: Activation = "relu") {
         if (!Number.isInteger(inputSize) || inputSize < 1) {
             throw new RangeError(`inputSize must be a positive integer, got ${inputSize}`);
         }
@@ -37,6 +48,7 @@ export class HiddenLayer {
         }
         this._inputSize = inputSize;
         this._numNeurons = numNeurons;
+        this._activation = activation;
     }
 
     /**
@@ -52,6 +64,11 @@ export class HiddenLayer {
      * zero weights would not work, because every neuron would then compute the
      * same thing and learn the same thing.
      *
+     * For sigmoid neurons, Xavier (Glorot) initialization is used instead:
+     * standard deviation sqrt(2 / (inputSize + numNeurons)). Sigmoid passes on
+     * about a quarter of the slope that ReLU does, and He's larger weights
+     * would push it into its flat regions, where it learns slowly.
+     *
      * The MNIST pixels are normalized to 0-1 by ImageLoader, which is the input
      * scale this initialization assumes.
      *
@@ -60,7 +77,9 @@ export class HiddenLayer {
      * different, so the biases do not need to be random.
      */
     build(): void {
-        const standardDeviation = Math.sqrt(2 / this._inputSize);
+        const standardDeviation = this._activation === "relu"
+            ? Math.sqrt(2 / this._inputSize)
+            : Math.sqrt(2 / (this._inputSize + this._numNeurons));
         this._weights = [];
         for (let n = 0; n < this._numNeurons; n++) {
             const row: number[] = [];
@@ -75,7 +94,8 @@ export class HiddenLayer {
     /**
      * Feeds a set of inputs through the layer and returns each neuron's output.
      * For each neuron, every input is multiplied by its weight, the products
-     * are summed, the bias is added and the ReLU function is applied.
+     * are summed, the bias is added and the activation function (normally
+     * ReLU) is applied.
      *
      * The inputs and the outputs (activations) are stored, replacing those from
      * the previous call. Backpropagation needs them to calculate this layer's
@@ -101,7 +121,7 @@ export class HiddenLayer {
                 sum += inputs[i]! * neuronWeights[i]!;
             }
             sum += biases[n]!;
-            outputs.push(relu(sum));
+            outputs.push(this._activation === "relu" ? relu(sum) : sigmoid(sum));
         }
 
         // Store copies, so changes the caller makes to either array do not alter them.
@@ -121,6 +141,10 @@ export class HiddenLayer {
      * image, so its error is 0. (ReLU's output is above 0 exactly when its
      * input was, so the stored activations tell us the slope.)
      *
+     * For sigmoid neurons the slope is activation * (1 - activation), which
+     * is largest (0.25) when the activation is 0.5 and approaches 0, without
+     * reaching it, as the activation approaches 0 or 1.
+     *
      * The errors are also stored, replacing those from the previous call, and
      * can be read through the errors property.
      *
@@ -137,8 +161,11 @@ export class HiddenLayer {
 
         const errors: number[] = [];
         for (let n = 0; n < this._numNeurons; n++) {
-            const reluSlope = activations[n]! > 0 ? 1 : 0;
-            errors.push(errorsFromNextLayer[n]! * reluSlope);
+            const activation = activations[n]!;
+            const slope = this._activation === "relu"
+                ? (activation > 0 ? 1 : 0)
+                : activation * (1 - activation);
+            errors.push(errorsFromNextLayer[n]! * slope);
         }
 
         // Store the errors, and return a copy so changes the caller makes do not alter them.
@@ -317,6 +344,11 @@ export class HiddenLayer {
         return this._numNeurons;
     }
 
+    /** The activation function applied by every neuron. */
+    get activation(): Activation {
+        return this._activation;
+    }
+
     /**
      * The weight matrix, indexed [neuron][input].
      * @throws Error if build() has not been called yet.
@@ -407,4 +439,12 @@ export class HiddenLayer {
  */
 function relu(x: number): number {
     return Math.max(0, x);
+}
+
+/**
+ * The logistic sigmoid: squashes any value into the range 0-1, giving 0.5
+ * for 0, nearly 1 for large positive values and nearly 0 for large negative ones.
+ */
+function sigmoid(x: number): number {
+    return 1 / (1 + Math.exp(-x));
 }
