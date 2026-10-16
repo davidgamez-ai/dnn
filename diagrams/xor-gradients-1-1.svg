@@ -1,0 +1,138 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="920" viewBox="0 0 1100 920" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>XOR network: gradient calculation for input [1, 1], target [1, 0] (randomSeed 9)</title>
+  <rect width="1100" height="920" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="550" y="36" text-anchor="middle" font-size="22" font-weight="600" fill="#111827">XOR network: gradient calculation</text>
+  <text x="550" y="60" text-anchor="middle" font-size="14" fill="#4b5563">randomSeed 9, untrained. Input [1, 1], target [1, 0]. The error signals δ come from the backpropagation step.</text>
+
+  <!-- Legend -->
+  <g font-size="12" fill="#374151">
+    <line x1="250" y1="88" x2="286" y2="88" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
+    <text x="294" y="92">positive gradient</text>
+    <line x1="410" y1="88" x2="446" y2="88" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/>
+    <text x="454" y="92">negative gradient</text>
+    <text x="580" y="92">thickness = size of gradient. Labels: δ of the receiving neuron × value it receives = gradient</text>
+  </g>
+
+  <!-- Layer headings -->
+  <g font-size="15" font-weight="600" fill="#374151" text-anchor="middle">
+    <text x="110" y="135">Input layer</text>
+    <text x="470" y="135">Hidden layer (ReLU)</text>
+    <text x="850" y="135">Output layer (softmax)</text>
+  </g>
+
+  <!-- Input -> hidden connections: gradient = hidden δ × input -->
+  <g stroke-linecap="round" stroke="#2563eb">
+    <line x1="110" y1="210" x2="470" y2="210" stroke-width="2.5"/>
+    <line x1="110" y1="450" x2="470" y2="210" stroke-width="2.5"/>
+    <line x1="110" y1="210" x2="470" y2="450" stroke-width="2.65"/>
+    <line x1="110" y1="450" x2="470" y2="450" stroke-width="2.65"/>
+  </g>
+
+  <!-- Hidden -> output connections: gradient = output δ × hidden activation -->
+  <g stroke-linecap="round">
+    <line x1="470" y1="210" x2="850" y2="210" stroke="#dc2626" stroke-width="2.2"/>
+    <line x1="470" y1="450" x2="850" y2="210" stroke="#dc2626" stroke-width="1.2"/>
+    <line x1="470" y1="210" x2="850" y2="450" stroke="#2563eb" stroke-width="2.2"/>
+    <line x1="470" y1="450" x2="850" y2="450" stroke="#2563eb" stroke-width="1.2"/>
+  </g>
+
+  <!-- Gradient labels. Diagonal labels sit near one end so the two crossing lines stay readable. -->
+  <g font-size="12" font-weight="600" text-anchor="middle">
+    <g fill="#ffffff" stroke="#d1d5db">
+      <!-- input -> hidden -->
+      <rect x="228" y="199" width="124" height="22" rx="4"/>
+      <rect x="167" y="359" width="124" height="22" rx="4"/>
+      <rect x="167" y="279" width="124" height="22" rx="4"/>
+      <rect x="228" y="439" width="124" height="22" rx="4"/>
+      <!-- hidden -> output -->
+      <rect x="580" y="199" width="160" height="22" rx="4"/>
+      <rect x="675" y="259" width="160" height="22" rx="4"/>
+      <rect x="675" y="379" width="160" height="22" rx="4"/>
+      <rect x="580" y="439" width="160" height="22" rx="4"/>
+    </g>
+    <!-- input 0 -> hidden 0, input 1 -> hidden 0, input 0 -> hidden 1, input 1 -> hidden 1 -->
+    <text x="290" y="214" fill="#1d4ed8">0.502 × 1 = 0.502</text>
+    <text x="229" y="374" fill="#1d4ed8">0.502 × 1 = 0.502</text>
+    <text x="229" y="294" fill="#1d4ed8">0.551 × 1 = 0.551</text>
+    <text x="290" y="454" fill="#1d4ed8">0.551 × 1 = 0.551</text>
+    <!-- hidden 0 -> output 0, hidden 1 -> output 0, hidden 0 -> output 1, hidden 1 -> output 1 -->
+    <text x="660" y="214" fill="#b91c1c">-0.639 × 0.636 = -0.406</text>
+    <text x="755" y="274" fill="#b91c1c">-0.639 × 0.082 = -0.052</text>
+    <text x="755" y="394" fill="#1d4ed8">0.639 × 0.636 = 0.406</text>
+    <text x="660" y="454" fill="#1d4ed8">0.639 × 0.082 = 0.052</text>
+  </g>
+
+  <!-- Neurons -->
+  <g stroke-width="2">
+    <circle cx="110" cy="210" r="40" fill="#f3f4f6" stroke="#6b7280"/>
+    <circle cx="110" cy="450" r="40" fill="#f3f4f6" stroke="#6b7280"/>
+    <circle cx="470" cy="210" r="40" fill="#ecfdf5" stroke="#059669"/>
+    <circle cx="470" cy="450" r="40" fill="#ecfdf5" stroke="#059669"/>
+    <circle cx="850" cy="210" r="40" fill="#fef3c7" stroke="#d97706"/>
+    <circle cx="850" cy="450" r="40" fill="#fef3c7" stroke="#d97706"/>
+  </g>
+  <g font-size="15" font-weight="600" fill="#111827" text-anchor="middle">
+    <text x="110" y="215">input 0</text>
+    <text x="110" y="455">input 1</text>
+    <text x="470" y="215">hidden 0</text>
+    <text x="470" y="455">hidden 1</text>
+    <text x="850" y="215">output 0</text>
+    <text x="850" y="455">output 1</text>
+  </g>
+
+  <!-- Input values -->
+  <g font-size="13" fill="#374151" text-anchor="middle">
+    <text x="110" y="272">value 1</text>
+    <text x="110" y="512">value 1</text>
+  </g>
+
+  <!-- Hidden neuron values: activation (sent on to the outputs), error signal, bias gradient -->
+  <g font-size="13" fill="#374151" text-anchor="middle">
+    <text x="470" y="280">a = 0.636</text>
+    <text x="470" y="298">δ = 0.502</text>
+    <text x="470" y="318" font-weight="700" fill="#1d4ed8">bias gradient = 0.502</text>
+    <text x="470" y="520">a = 0.082</text>
+    <text x="470" y="538">δ = 0.551</text>
+    <text x="470" y="558" font-weight="700" fill="#1d4ed8">bias gradient = 0.551</text>
+  </g>
+
+  <!-- Output neuron values: probability, error signal, bias gradient -->
+  <g font-size="13" fill="#374151">
+    <text x="904" y="198">P = 0.361, target = 1</text>
+    <text x="904" y="216">δ = −0.639</text>
+    <text x="904" y="236" font-weight="700" fill="#b91c1c">bias gradient = −0.639</text>
+    <text x="904" y="438">P = 0.639, target = 0</text>
+    <text x="904" y="456">δ = 0.639</text>
+    <text x="904" y="476" font-weight="700" fill="#1d4ed8">bias gradient = 0.639</text>
+  </g>
+
+  <!-- Step-by-step calculation -->
+  <rect x="40" y="596" width="1020" height="304" rx="8" fill="#f9fafb" stroke="#e5e7eb"/>
+  <text x="64" y="626" font-size="16" font-weight="600" fill="#111827">How the gradients are calculated</text>
+  <g font-size="13" fill="#111827">
+    <text x="64" y="648" fill="#4b5563">A weight's gradient is how much the loss changes when the weight changes: the error δ of the neuron it feeds × the value it carries.</text>
+
+    <text x="64" y="676" font-weight="600">1. Output layer weights: gradient[o][h] = δ[o] × a[h]   (a[h] = activation of the hidden neuron the weight comes from)</text>
+    <!-- Columns use explicit x positions, because SVG collapses repeated spaces -->
+    <g font-family="Consolas, Menlo, monospace" fill="#374151">
+      <text y="696"><tspan x="88">output 0:</tspan><tspan x="170">from hidden 0:</tspan><tspan x="290">−0.639 × 0.636 = −0.406</tspan><tspan x="520">from hidden 1:</tspan><tspan x="640">−0.639 × 0.082 = −0.052</tspan></text>
+      <text y="714"><tspan x="88">output 1:</tspan><tspan x="170">from hidden 0:</tspan><tspan x="290">0.639 × 0.636 = 0.406</tspan><tspan x="520">from hidden 1:</tspan><tspan x="640">0.639 × 0.082 = 0.052</tspan></text>
+    </g>
+
+    <text x="64" y="744" font-weight="600">2. Hidden layer weights: gradient[h][i] = δ[h] × input[i]</text>
+    <g font-family="Consolas, Menlo, monospace" fill="#374151">
+      <text y="764"><tspan x="88">hidden 0:</tspan><tspan x="170">from input 0:</tspan><tspan x="290">0.502 × 1 = 0.502</tspan><tspan x="520">from input 1:</tspan><tspan x="640">0.502 × 1 = 0.502</tspan></text>
+      <text y="782"><tspan x="88">hidden 1:</tspan><tspan x="170">from input 0:</tspan><tspan x="290">0.551 × 1 = 0.551</tspan><tspan x="520">from input 1:</tspan><tspan x="640">0.551 × 1 = 0.551</tspan></text>
+    </g>
+
+    <text x="64" y="812" font-weight="600">3. Biases: gradient = δ   (a bias acts like a weight whose input is always 1)</text>
+    <g font-family="Consolas, Menlo, monospace" fill="#374151">
+      <text y="832"><tspan x="88">output 0:</tspan><tspan x="170">−0.639</tspan><tspan x="290">output 1:</tspan><tspan x="372">0.639</tspan><tspan x="520">hidden 0:</tspan><tspan x="602">0.502</tspan><tspan x="720">hidden 1:</tspan><tspan x="802">0.551</tspan></text>
+    </g>
+
+    <text x="64" y="862" fill="#4b5563">The optimizer moves each weight against its gradient, so output 0's incoming weights (negative gradients) go up, raising P(answer 0).</text>
+    <text x="64" y="880" fill="#4b5563">In training, these gradients are averaged over the examples in the batch before the weights are updated.</text>
+  </g>
+</svg>

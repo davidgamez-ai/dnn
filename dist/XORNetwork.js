@@ -1,9 +1,7 @@
-import { AdamW } from "./AdamW.js";
 import DEBUG from "./Debug.js";
 import { HiddenLayer } from "./HiddenLayer.js";
 import { OutputLayer } from "./OutputLayer.js";
 import { setSeed } from "./Random.js";
-import { crossEntropyLoss, oneHot } from "./Trainer.js";
 /**
  * A tiny network that learns the XOR (exclusive or) function, to show
  * backpropagation on a network small enough to follow by hand:
@@ -54,9 +52,8 @@ export class XORNetwork {
     _hiddenLayer;
     _outputLayer;
     /**
-     * @param hyperparameters Settings for the network and training. Uses
-     * randomSeed, epochs and the AdamW settings; batchSize and dataSplit are
-     * ignored, because every epoch is one batch of all four examples.
+     * @param hyperparameters Settings for the network. Uses randomSeed, which
+     * sets the starting weights. Training is done by XORTrainer.
      */
     constructor(hyperparameters) {
         this.hyperparameters = hyperparameters;
@@ -171,11 +168,24 @@ export class XORNetwork {
      *
      * @param batchAverage true to average the new gradients with the stored
      * ones (a running mean over the batch); false to replace them.
+     *
+     * When DEBUG.XOR_GRADIENTS is set, logs the weight and bias gradients of
+     * both layers. Each weight gradient is error[neuron] × input[input], and
+     * each bias gradient is error[neuron].
+     *
      * @throws Error if update() or backpropagate() has not been called yet.
      */
     calculateGradients(batchAverage) {
         this._outputLayer.calculateGradients(this._outputLayer.errors, batchAverage);
         this._hiddenLayer.calculateGradients(this._hiddenLayer.errors, batchAverage);
+        if (DEBUG.XOR_GRADIENTS) {
+            const count = this._outputLayer.gradientCount;
+            console.log(`Gradients (averaged over ${count} example${count === 1 ? "" : "s"}):`);
+            console.log(`  Output weight gradients [neuron][input]: ${formatMatrix(this._outputLayer.weightGradients)}`);
+            console.log(`  Output bias gradients:                   ${formatVector(this._outputLayer.biasGradients)}`);
+            console.log(`  Hidden weight gradients [neuron][input]: ${formatMatrix(this._hiddenLayer.weightGradients)}`);
+            console.log(`  Hidden bias gradients:                   ${formatVector(this._hiddenLayer.biasGradients)}`);
+        }
     }
     /**
      * Takes one optimization step, updating both layers' weights and biases
@@ -192,55 +202,12 @@ export class XORNetwork {
         this._hiddenLayer.updateBiases(optimizer);
     }
     /**
-     * Builds the network and trains it on the four XOR examples for the
-     * number of epochs in the hyperparameters. Each epoch is a single batch:
-     *
-     *   For each of the four examples:
-     *     1. Feed the inputs forward.
-     *     2. Measure the cross-entropy loss against the answer.
-     *     3. Backpropagate, so both layers have their errors for this example.
-     *     4. Calculate the gradients, averaging them over the four examples.
-     *   Then:
-     *     5. The AdamW optimizer updates the weights and biases once, using
-     *        the averaged gradients.
-     *
-     * The average loss is logged every logInterval epochs, and after the last
-     * epoch. A network guessing 50/50 scores -log(0.5), about 0.69; as it
-     * learns XOR the loss falls towards 0.
-     *
-     * @param logInterval How many epochs between loss reports.
-     */
-    train(logInterval = 100) {
-        const optimizer = new AdamW(this.hyperparameters);
-        const epochs = this.hyperparameters.epochs;
-        for (let epoch = 1; epoch <= epochs; epoch++) {
-            let lossTotal = 0;
-            XORNetwork.EXAMPLES.forEach((example, index) => {
-                // Step 1: forward pass.
-                const probabilities = this.update(example.inputs);
-                // Step 2: loss.
-                lossTotal += crossEntropyLoss(probabilities, example.answer);
-                // Step 3: backpropagate the errors from the desired output.
-                this.backpropagate(oneHot(example.answer, XORNetwork.NUM_CLASSES));
-                // Step 4: gradients. The first example replaces the previous
-                // epoch's gradients; the rest are averaged in.
-                this.calculateGradients(index > 0);
-            });
-            // Step 5: one weight update per epoch.
-            this.updateWeights(optimizer);
-            if (epoch % logInterval === 0 || epoch === epochs) {
-                const loss = lossTotal / XORNetwork.EXAMPLES.length;
-                console.log(`Epoch ${epoch}/${epochs}: average loss ${loss.toFixed(4)}`);
-            }
-        }
-    }
-    /**
      * Logs the network's output for each of the four examples, how many it
      * gets right, and the learned weights and biases.
      *
      * The prediction is the answer with the higher probability.
      *
-     * @throws Error if build() (or train()) has not been called yet.
+     * @throws Error if build() has not been called yet.
      */
     printResults() {
         const table = {};
@@ -274,5 +241,9 @@ function round(value) {
 /** Formats an array of numbers to three decimal places, e.g. "[0.120, -1.500]". */
 function formatVector(values) {
     return `[${values.map(value => value.toFixed(3)).join(", ")}]`;
+}
+/** Formats a matrix row by row, e.g. "[[0.120, -1.500], [2.000, 0.300]]". */
+function formatMatrix(rows) {
+    return `[${rows.map(formatVector).join(", ")}]`;
 }
 //# sourceMappingURL=XORNetwork.js.map

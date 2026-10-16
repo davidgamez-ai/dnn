@@ -25,6 +25,13 @@ const DEBUG = {
      * many epochs.
      */
     XOR_ERROR_SIGNAL: true,
+    /**
+     * Switches on log output of every XORNetwork.calculateGradients() call:
+     * the weight and bias gradients of both layers, and how many examples
+     * they are averaged over. Called four times per epoch during training,
+     * so this produces a lot of output with many epochs.
+     */
+    XOR_GRADIENTS: true,
 };
 export default DEBUG;
 //# sourceMappingURL=Debug.js.map

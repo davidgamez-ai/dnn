@@ -1,0 +1,150 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="900" viewBox="0 0 1100 900" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <title>XOR network: backpropagation of errors for input [0, 0], target [1, 0] (randomSeed 9)</title>
+  <defs>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/>
+    </marker>
+  </defs>
+  <rect width="1100" height="900" fill="#ffffff"/>
+
+  <!-- Title -->
+  <text x="550" y="36" text-anchor="middle" font-size="22" font-weight="600" fill="#111827">XOR network: backpropagation of errors</text>
+  <text x="550" y="60" text-anchor="middle" font-size="14" fill="#4b5563">randomSeed 9, untrained. Input [0, 0], target [1, 0] (XOR of 0 and 0 is 0, so P(answer 0) should be 1)</text>
+
+  <!-- Legend -->
+  <g font-size="12" fill="#374151">
+    <line x1="200" y1="88" x2="236" y2="88" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
+    <text x="244" y="92">positive weight</text>
+    <line x1="350" y1="88" x2="386" y2="88" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/>
+    <text x="394" y="92">negative weight</text>
+    <text x="510" y="92">thickness = size of weight</text>
+    <line x1="680" y1="88" x2="716" y2="88" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text x="724" y="92">not used when passing errors back</text>
+  </g>
+
+  <!-- Layer headings -->
+  <g font-size="15" font-weight="600" fill="#374151" text-anchor="middle">
+    <text x="130" y="135">Input layer</text>
+    <text x="430" y="135">Hidden layer (ReLU)</text>
+    <text x="830" y="135">Output layer (softmax)</text>
+  </g>
+  <text x="630" y="162" text-anchor="middle" font-size="13" font-style="italic" fill="#6b7280">errors flow backwards ←</text>
+
+  <!-- Input -> hidden connections: faded, as errors are not passed back to the inputs -->
+  <g stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="5 4">
+    <line x1="130" y1="210" x2="430" y2="210"/>
+    <line x1="130" y1="450" x2="430" y2="210"/>
+    <line x1="130" y1="210" x2="430" y2="450"/>
+    <line x1="130" y1="450" x2="430" y2="450"/>
+  </g>
+  <g font-size="11" fill="#9ca3af" text-anchor="middle">
+    <g fill="#ffffff" stroke="#e5e7eb">
+      <rect x="318" y="200" width="44" height="18" rx="3"/>
+      <rect x="318" y="273" width="44" height="18" rx="3"/>
+      <rect x="318" y="369" width="44" height="18" rx="3"/>
+      <rect x="318" y="441" width="44" height="18" rx="3"/>
+    </g>
+    <text x="340" y="213">0.395</text>
+    <text x="340" y="286">0.241</text>
+    <text x="340" y="382">-0.601</text>
+    <text x="340" y="454">0.683</text>
+  </g>
+
+  <!-- Hidden <- output connections: arrows show each output error travelling back through its weight -->
+  <g stroke-linecap="round">
+    <line x1="790" y1="210" x2="474" y2="210" stroke="#dc2626" stroke-width="1.8" marker-end="url(#arrow-red)"/>
+    <line x1="795.7" y1="230.6" x2="467.7" y2="427.4" stroke="#dc2626" stroke-width="3.8" marker-end="url(#arrow-red)"/>
+    <line x1="795.7" y1="429.4" x2="467.7" y2="232.6" stroke="#2563eb" stroke-width="2.6" marker-end="url(#arrow-blue)"/>
+    <line x1="790" y1="450" x2="474" y2="450" stroke="#dc2626" stroke-width="1.2" marker-end="url(#arrow-red)"/>
+  </g>
+
+  <!-- Labels: weight x output error = contribution to the hidden neuron's error -->
+  <g font-size="12" font-weight="600" text-anchor="middle">
+    <g fill="#ffffff" stroke="#d1d5db">
+      <rect x="610" y="199" width="160" height="22" rx="4"/>
+      <rect x="610" y="283" width="160" height="22" rx="4"/>
+      <rect x="610" y="355" width="160" height="22" rx="4"/>
+      <rect x="610" y="439" width="160" height="22" rx="4"/>
+    </g>
+    <text x="690" y="214" fill="#b91c1c">-0.252 × -0.500 = 0.126</text>
+    <text x="690" y="298" fill="#b91c1c">-0.934 × -0.500 = 0.467</text>
+    <text x="690" y="370" fill="#1d4ed8">0.534 × 0.500 = 0.267</text>
+    <text x="690" y="454" fill="#b91c1c">-0.072 × 0.500 = -0.036</text>
+  </g>
+
+  <!-- Neurons -->
+  <g stroke-width="2">
+    <circle cx="130" cy="210" r="40" fill="#f3f4f6" stroke="#6b7280"/>
+    <circle cx="130" cy="450" r="40" fill="#f3f4f6" stroke="#6b7280"/>
+    <circle cx="430" cy="210" r="40" fill="#ecfdf5" stroke="#059669"/>
+    <circle cx="430" cy="450" r="40" fill="#ecfdf5" stroke="#059669"/>
+    <circle cx="830" cy="210" r="40" fill="#fef3c7" stroke="#d97706"/>
+    <circle cx="830" cy="450" r="40" fill="#fef3c7" stroke="#d97706"/>
+  </g>
+  <g font-size="15" font-weight="600" fill="#111827" text-anchor="middle">
+    <text x="130" y="215">input 0</text>
+    <text x="130" y="455">input 1</text>
+    <text x="430" y="215">hidden 0</text>
+    <text x="430" y="455">hidden 1</text>
+    <text x="830" y="215">output 0</text>
+    <text x="830" y="455">output 1</text>
+  </g>
+
+  <!-- Input values -->
+  <g font-size="13" fill="#374151" text-anchor="middle">
+    <text x="130" y="272">value 0</text>
+    <text x="130" y="512">value 0</text>
+  </g>
+
+  <!-- Hidden neuron values: activation, error passed back (e), error signal (δ) -->
+  <g font-size="13" fill="#374151" text-anchor="middle">
+    <text x="430" y="280">a = 0.000 (slope 0)</text>
+    <text x="430" y="298">e = 0.126 + 0.267 = 0.393</text>
+    <text x="430" y="318" font-weight="700" fill="#111827">δ = 0.393 × 0 = 0.000</text>
+    <text x="430" y="520">a = 0.000 (slope 0)</text>
+    <text x="430" y="538">e = 0.467 − 0.036 = 0.431</text>
+    <text x="430" y="558" font-weight="700" fill="#111827">δ = 0.431 × 0 = 0.000</text>
+  </g>
+
+  <!-- Output neuron values: logit, probability, target, error signal (δ) -->
+  <g font-size="13" fill="#374151">
+    <text x="884" y="190">logit = 0.000</text>
+    <text x="884" y="208">P = 0.500</text>
+    <text x="884" y="226">target = 1</text>
+    <text x="884" y="246" font-weight="700" fill="#b91c1c">δ = 0.500 − 1 = −0.500</text>
+    <text x="884" y="430">logit = 0.000</text>
+    <text x="884" y="448">P = 0.500</text>
+    <text x="884" y="466">target = 0</text>
+    <text x="884" y="486" font-weight="700" fill="#1d4ed8">δ = 0.500 − 0 = 0.500</text>
+  </g>
+
+  <!-- Step-by-step calculation -->
+  <rect x="40" y="596" width="1020" height="284" rx="8" fill="#f9fafb" stroke="#e5e7eb"/>
+  <text x="64" y="626" font-size="16" font-weight="600" fill="#111827">How the errors are calculated</text>
+  <g font-size="13" fill="#111827">
+    <text x="64" y="656" font-weight="600">1. Output error signals: δ = P − target   (softmax with cross-entropy loss)</text>
+    <!-- Columns use explicit x positions, because SVG collapses repeated spaces -->
+    <g font-family="Consolas, Menlo, monospace" fill="#374151">
+      <text y="676"><tspan x="88">output 0:</tspan><tspan x="170">0.500 − 1 = −0.500</tspan><tspan x="340">(should go up: the answer is 0)</tspan></text>
+      <text y="694"><tspan x="88">output 1:</tspan><tspan x="170">0.500 − 0 = 0.500</tspan><tspan x="340">(should go down)</tspan></text>
+    </g>
+
+    <text x="64" y="724" font-weight="600">2. Pass the errors back through the hidden → output weights: e[h] = Σ over o of ( weight[o][h] × δ[o] )</text>
+    <g font-family="Consolas, Menlo, monospace" fill="#374151">
+      <text y="744"><tspan x="88">hidden 0:</tspan><tspan x="170">(−0.252 × −0.500)</tspan><tspan x="306">+</tspan><tspan x="322">(0.534 × 0.500)</tspan><tspan x="460">= 0.126 + 0.267 = 0.393</tspan></text>
+      <text y="762"><tspan x="88">hidden 1:</tspan><tspan x="170">(−0.934 × −0.500)</tspan><tspan x="306">+</tspan><tspan x="322">(−0.072 × 0.500)</tspan><tspan x="460">= 0.467 − 0.036 = 0.431</tspan></text>
+    </g>
+
+    <text x="64" y="792" font-weight="600">3. Multiply by the ReLU slope (1 if the activation was above 0, otherwise 0): δ[h] = e[h] × slope</text>
+    <g font-family="Consolas, Menlo, monospace" fill="#374151">
+      <text y="812"><tspan x="88">hidden 0:</tspan><tspan x="170">0.393 × 0 = 0.000</tspan><tspan x="340">(activation 0.000)</tspan></text>
+      <text y="830"><tspan x="88">hidden 1:</tspan><tspan x="170">0.431 × 0 = 0.000</tspan><tspan x="340">(activation 0.000)</tspan></text>
+    </g>
+
+    <text x="64" y="858" fill="#4b5563">For input [0, 0] both hidden neurons output 0, so neither had any effect on the output and both error signals are 0.</text>
+    <text x="64" y="876" fill="#4b5563">The inputs are not learned, so the errors stop at the hidden layer.</text>
+  </g>
+</svg>

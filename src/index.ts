@@ -4,9 +4,8 @@ import { Trainer } from "./Trainer.js";
 import { Tester } from "./Tester.js";
 import { XORTester } from "./XORTester.js";
 
-const hyperparameters: Hyperparameters = new Hyperparameters();
-hyperparameters.randomSeed = 9;
-hyperparameters.epochs = 5;
+// learningRate 0.01, epochs 2000, randomSeed 9; change any of them here.
+const hyperparameters: Hyperparameters = XORTester.defaultHyperparameters();
 
 const xorTester = new XORTester(hyperparameters);
 xorTester.run();

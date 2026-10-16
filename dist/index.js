@@ -1,8 +1,6 @@
-import { Hyperparameters } from "./Hyperparameters.js";
 import { XORTester } from "./XORTester.js";
-const hyperparameters = new Hyperparameters();
-hyperparameters.randomSeed = 9;
-hyperparameters.epochs = 5;
+// learningRate 0.01, epochs 2000, randomSeed 9; change any of them here.
+const hyperparameters = XORTester.defaultHyperparameters();
 const xorTester = new XORTester(hyperparameters);
 xorTester.run();
 //# sourceMappingURL=index.js.map
